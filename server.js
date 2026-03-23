@@ -6,6 +6,7 @@ const http = require("http");
 const fs = require("fs/promises");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
+const cors = require("cors");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -13,6 +14,10 @@ const DATA_DIR = path.join(__dirname, "data");
 const CONTACTS_FILE = path.join(DATA_DIR, "contacts.json");
 const MONGODB_URI = process.env.MONGODB_URI || "";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const FRONTEND_URLS = String(process.env.FRONTEND_URLS || "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
 
 let isMongoConnected = false;
 
@@ -28,6 +33,31 @@ const Contact = mongoose.model("Contact", contactSchema);
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow server-to-server and same-origin requests with no origin header.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    // If FRONTEND_URLS is not set, keep development easy.
+    if (FRONTEND_URLS.length === 0) {
+      callback(null, true);
+      return;
+    }
+    if (FRONTEND_URLS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS blocked origin: ${origin}`));
+  },
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-token"],
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 function clean(value) {
   return String(value || "").trim();

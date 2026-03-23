@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- If you open index.html as a file, contact form posts here (match PORT in .env) -->
-<meta name="api-port" content="3012">
+<!-- For Vercel -> Render setup, set this to your backend URL (e.g. https://your-api.onrender.com) -->
+<meta name="api-base-url" content="">
 <title>AUGUST — Portfolio</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 <style>
@@ -887,12 +887,13 @@
       submitButton.disabled = true;
 
       try {
-        const portMeta = document.querySelector('meta[name="api-port"]');
-        const apiPort = (portMeta && portMeta.content) ? portMeta.content.trim() : '3012';
+        const savedApiBase = localStorage.getItem("apiBaseUrl") || "";
+        const apiBaseMeta = document.querySelector('meta[name="api-base-url"]');
+        const apiBase = (savedApiBase || (apiBaseMeta && apiBaseMeta.content ? apiBaseMeta.content : "")).trim().replace(/\/+$/, '');
         // Always post to the same host that served this page (avoids hitting a wrong server on another port).
         const apiUrl = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
-          ? `${window.location.origin}/api/contact`
-          : `http://localhost:${apiPort}/api/contact`;
+          ? (apiBase ? `${apiBase}/api/contact` : `${window.location.origin}/api/contact`)
+          : (apiBase ? `${apiBase}/api/contact` : 'http://localhost:3012/api/contact');
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

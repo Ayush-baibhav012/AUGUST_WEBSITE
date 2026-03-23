@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base-url" content="">
   <title>Admin - Contact Manager</title>
   <style>
     :root {
@@ -116,6 +117,8 @@
     <div class="bar">
       <input id="tokenInput" type="password" placeholder="Enter ADMIN_TOKEN">
       <button id="saveTokenBtn" type="button">Save Token</button>
+      <input id="apiUrlInput" type="text" placeholder="API Base URL (optional, e.g. https://api.onrender.com)" style="min-width: 340px;">
+      <button id="saveApiUrlBtn" type="button" class="secondary">Save API URL</button>
       <button id="loadBtn" type="button" class="secondary">Refresh Messages</button>
     </div>
     <div id="status">Set your admin token and click refresh.</div>
@@ -129,6 +132,16 @@
     const statusEl = document.getElementById("status");
     const listEl = document.getElementById("list");
     const TOKEN_KEY = "adminToken";
+    const API_BASE_KEY = "apiBaseUrl";
+    const apiUrlInput = document.getElementById("apiUrlInput");
+    const saveApiUrlBtn = document.getElementById("saveApiUrlBtn");
+
+    function getApiBase() {
+      const saved = localStorage.getItem(API_BASE_KEY) || "";
+      const apiBaseMeta = document.querySelector('meta[name="api-base-url"]');
+      const metaVal = (apiBaseMeta && apiBaseMeta.content ? apiBaseMeta.content : "");
+      return (saved || metaVal).trim().replace(/\/+$/, "");
+    }
 
     function setStatus(text, type) {
       statusEl.textContent = text;
@@ -145,10 +158,12 @@
 
     async function api(path, options) {
       const token = getToken();
+      const apiBase = getApiBase();
+      const apiUrl = apiBase ? `${apiBase}${path}` : path;
       const headers = Object.assign({}, options?.headers || {}, {
         Authorization: `Bearer ${token}`,
       });
-      const response = await fetch(path, { ...options, headers });
+      const response = await fetch(apiUrl, { ...options, headers });
       const data = await response.json();
       if (!response.ok || !data.ok) {
         throw new Error(data.error || "Request failed.");
@@ -202,6 +217,17 @@
       setStatus("Token saved in browser.", "ok");
     });
 
+    saveApiUrlBtn.addEventListener("click", () => {
+      const apiUrl = (apiUrlInput.value || "").trim();
+      if (!apiUrl) {
+        localStorage.removeItem(API_BASE_KEY);
+        setStatus("API URL cleared.", "ok");
+        return;
+      }
+      localStorage.setItem(API_BASE_KEY, apiUrl.replace(/\/+$/, ""));
+      setStatus("API URL saved in browser.", "ok");
+    });
+
     loadBtn.addEventListener("click", loadContacts);
 
     listEl.addEventListener("click", async (event) => {
@@ -236,6 +262,10 @@
     });
 
     tokenInput.value = getToken();
+    const initialApiBase = localStorage.getItem(API_BASE_KEY) || "";
+    if (initialApiBase) {
+      apiUrlInput.value = initialApiBase;
+    }
     if (getToken()) {
       loadContacts();
     }
