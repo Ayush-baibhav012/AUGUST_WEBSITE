@@ -1,0 +1,9 @@
+{
+  "name": "august-website",
+  "private": true,
+  "description": "Portfolio site — backend lives in the \"New folder\" directory.",
+  "scripts": {
+    "start": "node \"./New folder/server.js\"",
+    "install:app": "npm install --prefix \"./New folder\""
+  }
+}

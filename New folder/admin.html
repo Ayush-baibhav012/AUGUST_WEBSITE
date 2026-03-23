@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Contact Manager</title>
+  <style>
+    :root {
+      --bg: #0e0e12;
+      --card: #171722;
+      --text: #f2f2f7;
+      --muted: #a7a7bb;
+      --accent: #8b5cf6;
+      --ok: #34d399;
+      --bad: #fb7185;
+      --border: #2a2a3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 18px;
+      font-size: 1.6rem;
+    }
+    .bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    input, button {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+    input { min-width: 260px; }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border: none;
+    }
+    button.secondary {
+      background: #272739;
+      border: 1px solid var(--border);
+    }
+    #status {
+      min-height: 1.2em;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    .message {
+      white-space: pre-wrap;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+      margin-left: 8px;
+    }
+    .pill.unread {
+      color: #fbbf24;
+      border-color: #f59e0b;
+    }
+    .pill.read {
+      color: var(--ok);
+      border-color: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Contact Messages Admin</h1>
+    <div class="bar">
+      <input id="tokenInput" type="password" placeholder="Enter ADMIN_TOKEN">
+      <button id="saveTokenBtn" type="button">Save Token</button>
+      <button id="loadBtn" type="button" class="secondary">Refresh Messages</button>
+    </div>
+    <div id="status">Set your admin token and click refresh.</div>
+    <div id="list" class="list"></div>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById("tokenInput");
+    const saveTokenBtn = document.getElementById("saveTokenBtn");
+    const loadBtn = document.getElementById("loadBtn");
+    const statusEl = document.getElementById("status");
+    const listEl = document.getElementById("list");
+    const TOKEN_KEY = "adminToken";
+
+    function setStatus(text, type) {
+      statusEl.textContent = text;
+      statusEl.className = type || "";
+    }
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY) || "";
+    }
+
+    function saveToken(token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+
+    async function api(path, options) {
+      const token = getToken();
+      const headers = Object.assign({}, options?.headers || {}, {
+        Authorization: `Bearer ${token}`,
+      });
+      const response = await fetch(path, { ...options, headers });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Request failed.");
+      }
+      return data;
+    }
+
+    function cardTemplate(contact) {
+      const statusClass = contact.isRead ? "read" : "unread";
+      const statusText = contact.isRead ? "Read" : "Unread";
+      return `
+        <div class="card" data-id="${contact.id}">
+          <h3>${contact.subject}<span class="pill ${statusClass}">${statusText}</span></h3>
+          <div class="meta">
+            ${contact.name} (${contact.email}) • ${new Date(contact.createdAt).toLocaleString()} • ${contact.source}
+          </div>
+          <div class="message">${contact.message}</div>
+          <div class="actions">
+            <button type="button" class="secondary toggle-read">
+              Mark as ${contact.isRead ? "Unread" : "Read"}
+            </button>
+            <button type="button" class="delete-btn">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadContacts() {
+      setStatus("Loading messages...");
+      listEl.innerHTML = "";
+      try {
+        const data = await api("/api/contact", { method: "GET" });
+        if (!data.contacts.length) {
+          setStatus("No messages yet.", "ok");
+          return;
+        }
+        listEl.innerHTML = data.contacts.map(cardTemplate).join("");
+        setStatus(`Loaded ${data.count} message(s).`, "ok");
+      } catch (error) {
+        setStatus(error.message, "bad");
+      }
+    }
+
+    saveTokenBtn.addEventListener("click", () => {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus("Please enter token first.", "bad");
+        return;
+      }
+      saveToken(token);
+      setStatus("Token saved in browser.", "ok");
+    });
+
+    loadBtn.addEventListener("click", loadContacts);
+
+    listEl.addEventListener("click", async (event) => {
+      const card = event.target.closest(".card");
+      if (!card) return;
+      const id = card.getAttribute("data-id");
+
+      if (event.target.classList.contains("toggle-read")) {
+        const currentRead = event.target.textContent.includes("Unread");
+        try {
+          await api(`/api/contact/${id}/read`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isRead: currentRead }),
+          });
+          await loadContacts();
+        } catch (error) {
+          setStatus(error.message, "bad");
+        }
+      }
+
+      if (event.target.classList.contains("delete-btn")) {
+        const yes = confirm("Delete this message?");
+        if (!yes) return;
+        try {
+          await api(`/api/contact/${id}`, { method: "DELETE" });
+          await loadContacts();
+        } catch (error) {
+          setStatus(error.message, "bad");
+        }
+      }
+    });
+
+    tokenInput.value = getToken();
+    if (getToken()) {
+      loadContacts();
+    }
+  </script>
+</body>
+</html>

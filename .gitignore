@@ -1,0 +1,29 @@
+# Secrets — NEVER commit (passwords, tokens, API keys)
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Dependencies (reinstall with npm install)
+node_modules/
+
+# Logs & debug
+npm-debug.log*
+logs/
+*.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Optional: local contact backups (contains visitor emails)
+**/data/*.corrupt.bak
+**/data/*.bak
+
+# Optional: keep structure but ignore real messages on public repo
+# Uncomment next line if you don't want messages in git:
+# New folder/data/contacts.json
